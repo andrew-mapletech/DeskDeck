@@ -1,0 +1,467 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="DeskDeck">
+<meta name="theme-color" content="#000000">
+<link rel="manifest" href="/manifest.json">
+<title>DeskDeck</title>
+<style>
+  :root {
+    --bg: #000; --panel: #05080b; --panel2: #0a0f14; --line: #15212b;
+    --text: #e4f4ff; --dim: #7f93a6; --faint: #47596a;
+    --accent: #00e5ff; --blue: #00b8ff; --green: #1fff9c; --amber: #ffb02e; --red: #ff3b5c;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, monospace;
+    --r: 10px; --gap: 12px; --pad: 16px;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); overflow: hidden;
+    overscroll-behavior: none; font: 17px/1.35 -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+    -webkit-user-select: none; user-select: none; }
+  body { display: flex; flex-direction: column; height: 100dvh;
+    padding: max(var(--pad), env(safe-area-inset-top)) 0 max(8px, env(safe-area-inset-bottom)); }
+  .num { font-variant-numeric: tabular-nums; }
+
+  header { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex: none;
+    padding: 0 max(calc(var(--pad) + 4px), env(safe-area-inset-right)) 10px max(calc(var(--pad) + 4px), env(safe-area-inset-left)); }
+  header h1 { font-size: 17px; font-weight: 600; color: var(--dim); margin: 0; letter-spacing: .02em; white-space: nowrap; }
+  header h1 b { color: var(--text); }
+  #conn { font-size: 14px; color: var(--faint); margin-left: 8px; }
+  #conn.bad { color: var(--red); }
+  .tabs { display: flex; gap: 4px; background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 3px; }
+  .tabs button { appearance: none; border: 0; background: transparent; color: var(--dim); font: inherit; font-size: 15px;
+    font-weight: 600; padding: 6px 14px; border-radius: 999px; cursor: pointer; }
+  .tabs button.on { background: var(--panel2); color: var(--text); }
+  .tabs .badge { display: none; width: 8px; height: 8px; border-radius: 50%; background: var(--amber); margin-left: 6px; vertical-align: 1px; }
+  .tabs .badge.on { display: inline-block; }
+  #clock { font-size: 30px; font-weight: 300; letter-spacing: -.02em; white-space: nowrap; }
+
+  /* ---- swipeable pages */
+  .pages { flex: 1; min-height: 0; display: flex; overflow-x: auto; overflow-y: hidden;
+    scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  .pages::-webkit-scrollbar { display: none; }
+  .page { flex: 0 0 100%; height: 100%; scroll-snap-align: start; scroll-snap-stop: always; min-width: 0;
+    padding: 0 max(var(--pad), env(safe-area-inset-right)) 0 max(var(--pad), env(safe-area-inset-left));
+    display: grid; gap: var(--gap); min-height: 0; }
+  .dots { flex: none; display: flex; justify-content: center; gap: 8px; padding-top: 8px; }
+  .dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--line); transition: background .2s, width .2s; }
+  .dots i.on { background: var(--dim); width: 18px; border-radius: 4px; }
+
+  /* page 1: dashboard — Mac stats on top, Claude below */
+  #p1 { grid-template-columns: 7fr 5fr; grid-template-rows: auto auto minmax(0, 1fr); }
+  #p1 .stats { grid-column: 1 / -1; grid-row: 1; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--gap); }
+  #p1 .usageCard { grid-column: 1; grid-row: 2; }
+  #p1 .sessCard { grid-column: 1; grid-row: 3; }
+  #p1 .feedCard { grid-column: 2; grid-row: 2 / span 2; }
+  /* page 2: shortcuts + media */
+  #p2 { grid-template-columns: 3fr 1fr; grid-template-rows: minmax(0, 1fr); }
+
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 14px 16px;
+    min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+  .card h2 { margin: 0 0 8px; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--dim);
+             display: flex; justify-content: space-between; align-items: center; gap: 8px; flex: none; }
+  .card h2 small { text-transform: none; letter-spacing: 0; font-weight: 500; color: var(--faint);
+             white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .fill { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; }
+  .fill::-webkit-scrollbar { display: none; }
+
+  .big { font-size: 32px; font-weight: 600; letter-spacing: -.02em; }
+  .big small { font-size: 16px; font-weight: 500; color: var(--dim); margin-left: 3px; }
+  .sub { color: var(--dim); font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bar { height: 6px; border-radius: 3px; background: var(--panel2); overflow: hidden; margin-top: 10px; }
+  .bar i { display: block; height: 100%; border-radius: 3px; background: var(--blue); transition: width .6s; }
+  svg.spark { width: 100%; height: 30px; margin-top: 6px; display: block; }
+
+  /* alert (shows on both pages) */
+  #alert { display: none; position: fixed; left: 50%; transform: translateX(-50%); z-index: 5;
+           top: max(10px, env(safe-area-inset-top)); width: min(720px, calc(100% - 32px));
+           background: linear-gradient(90deg, #3a2414, #2a1d16); border: 1px solid #7a4a2a; border-radius: 14px;
+           padding: 12px 16px; align-items: center; gap: 12px; box-shadow: 0 10px 30px rgba(0,0,0,.5); cursor: pointer; }
+  #alert.on { display: flex; animation: pulse 2s ease-in-out infinite; }
+  #alert .dot { width: 12px; height: 12px; border-radius: 50%; background: var(--amber); flex: none; }
+  #alert b { color: #ffd2a8; }
+  #alertText { flex: 1; min-width: 0; font-size: 16px; }
+  #alert .x { color: var(--dim); font-size: 14px; flex: none; }
+  @keyframes pulse { 50% { border-color: var(--amber); } }
+  #toast { position: fixed; left: 50%; bottom: max(28px, calc(env(safe-area-inset-bottom) + 20px)); z-index: 6;
+           transform: translate(-50%, 20px); opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s;
+           max-width: min(760px, calc(100% - 32px)); background: #3a1c1e; border: 1px solid #7a2e33; color: #ffd6d8;
+           border-radius: 12px; padding: 10px 16px; font-size: 16px; box-shadow: 0 10px 30px rgba(0,0,0,.5); }
+  #toast.on { opacity: 1; transform: translate(-50%, 0); }
+  #toast.info { background: #062430; border-color: var(--accent); color: #d8f9ff; box-shadow: 0 0 24px rgba(0,229,255,.25); }
+
+  .usage { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+  .usage .u { background: var(--panel2); border-radius: 12px; padding: 10px 12px; min-width: 0; }
+  .usage .u .k { font-size: 14px; color: var(--dim); }
+  .usage .u .v { font-size: 26px; font-weight: 600; margin-top: 2px; }
+  .usage .u .s { font-size: 14px; color: var(--faint); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .models { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+  .chip { font-size: 14px; padding: 3px 9px; border-radius: 999px; background: var(--panel2); color: var(--dim); }
+  .sessions { display: flex; flex-direction: column; gap: 8px; }
+  .sess { display: grid; grid-template-columns: 10px 1fr auto; gap: 10px; align-items: center;
+          background: var(--panel2); border-radius: 12px; padding: 10px 12px; }
+  .sess .st { width: 10px; height: 10px; border-radius: 50%; background: var(--faint); }
+  .sess.working .st { background: var(--green); box-shadow: 0 0 0 4px rgba(63,185,124,.18); }
+  .sess.waiting { outline: 1px solid var(--amber); }
+  .sess.waiting .st { background: var(--amber); box-shadow: 0 0 0 4px rgba(240,164,58,.2); }
+  .sess.done .st, .sess.running .st, .sess.idle .st { background: var(--blue); }
+  .sess .t { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sess .m { font-size: 14px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sess .r { font-size: 14px; color: var(--faint); text-align: right; white-space: nowrap; }
+  .feed { font-size: 15px; display: flex; flex-direction: column; gap: 7px; }
+  .feed .row { display: grid; grid-template-columns: 80px 1fr; gap: 8px; color: var(--dim); }
+  .feed .row span:first-child { color: var(--faint); }
+  .feed .row span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .feed b { color: var(--text); font-weight: 600; }
+  .empty { color: var(--faint); font-size: 15px; padding: 6px 0; }
+
+  /* deck: buttons stretch to fill the card */
+  .deck { flex: 1; min-height: 0; display: grid; gap: 10px;
+          grid-template-columns: repeat(var(--cols, 4), minmax(0, 1fr)); grid-auto-rows: minmax(0, 1fr); }
+  .btn { appearance: none; border: 1px solid var(--line); background: var(--panel2); color: var(--text);
+         border-radius: 16px; display: flex; flex-direction: column; align-items: center; min-height: 0;
+         justify-content: center; gap: 6px; font: inherit; font-size: 15px; font-weight: 500; cursor: pointer;
+         transition: transform .08s, background .2s; padding: 6px; text-align: center; overflow: hidden; }
+  .btn .ic { font-size: 44px; line-height: 1; }
+  .btn:active { transform: scale(.94); }
+  .btn.ok { background: #1c3a2b; } .btn.err { background: #3a1c1e; }
+
+  /* media (vertical, in its own column) */
+  .mediaCard .np { flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: center; gap: 4px; text-align: center; }
+  .mediaCard .np .t { font-weight: 600; font-size: 20px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .ctl { display: flex; justify-content: center; align-items: center; gap: 12px; margin-top: 12px; flex: none; }
+  .mbtn { appearance: none; border: 0; background: var(--panel2); color: var(--text); width: 52px; height: 52px;
+          border-radius: 50%; font-size: 22px; cursor: pointer; flex: none; }
+  .mbtn:active { transform: scale(.92); }
+  .mbtn.main { background: var(--text); color: var(--bg); width: 64px; height: 64px; }
+  .vol { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--line); flex: none; }
+  .vol .sub { text-align: center; }
+
+  /* ---- techy black theme */
+  body { background-color: #000;
+    background-image: linear-gradient(rgba(0,229,255,.035) 1px, transparent 1px),
+                      linear-gradient(90deg, rgba(0,229,255,.035) 1px, transparent 1px);
+    background-size: 32px 32px; }
+  .num, #clock, header h1, .card h2, .usage .u .k, .chip, .tabs button, .feed .row span:first-child,
+  .sess .r, .sub, .usage .u .s { font-family: var(--mono); }
+  header h1 b { color: var(--accent); }
+  #clock { color: var(--accent); text-shadow: 0 0 14px rgba(0,229,255,.45); font-weight: 400; }
+  .tabs { background: #030507; border-color: var(--line); border-radius: 8px; }
+  .tabs button { border-radius: 6px; letter-spacing: .06em; text-transform: uppercase; font-size: 13px; }
+  .tabs button.on { background: rgba(0,229,255,.12); color: var(--accent); box-shadow: inset 0 0 0 1px rgba(0,229,255,.35); }
+  .card { position: relative; background: linear-gradient(180deg, #060a0e, #020406); border-color: var(--line); }
+  .card::before { content: ""; position: absolute; left: -1px; top: -1px; width: 36px; height: 2px;
+    background: var(--accent); box-shadow: 0 0 10px var(--accent); opacity: .8; }
+  .card h2 { color: var(--accent); letter-spacing: .14em; opacity: .9; justify-content: flex-start; }
+  .card h2::before { content: "//"; color: var(--faint); letter-spacing: 0; margin-right: -2px; }
+  .card h2 small { font-family: var(--mono); margin-left: auto; }
+  .usage .u .s { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .big { color: #fff; text-shadow: 0 0 18px rgba(0,229,255,.25); font-family: var(--mono); font-weight: 500; letter-spacing: -.03em; }
+  .bar { background: #0c141b; border-radius: 1px; height: 5px; }
+  .bar i { border-radius: 1px; background: var(--accent); box-shadow: 0 0 10px rgba(0,229,255,.6); }
+  .usage .u, .sess { background: #070c11; border: 1px solid #101a22; border-radius: 8px; }
+  .usage .u .v { font-family: var(--mono); font-weight: 500; color: #fff; }
+  .chip { background: #070c11; border: 1px solid #101a22; border-radius: 4px; }
+  .sess.working { box-shadow: inset 2px 0 0 var(--green); }
+  .sess.working .st { box-shadow: 0 0 10px var(--green); }
+  .sess.waiting { outline: none; box-shadow: inset 2px 0 0 var(--amber), 0 0 0 1px rgba(255,176,46,.5); }
+  .feed b { color: var(--accent); font-weight: 500; }
+  .btn { background: #05090d; border-color: var(--line); border-radius: 10px; font-family: var(--mono); font-size: 18px; gap: 10px; }
+  .btn:active { border-color: var(--accent); box-shadow: 0 0 16px rgba(0,229,255,.35); }
+  .btn.ok { background: rgba(31,255,156,.14); border-color: var(--green); }
+  .btn.err { background: rgba(255,59,92,.14); border-color: var(--red); }
+  .mbtn { background: #070c11; border: 1px solid var(--line); }
+  .mbtn.main { background: var(--accent); color: #000; box-shadow: 0 0 20px rgba(0,229,255,.45); border: 0; }
+  .dots i { background: #13202a; } .dots i.on { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+  #alert { background: linear-gradient(90deg, #1f1300, #120b00); border-color: #6b4600; border-radius: 10px; font-family: var(--mono); }
+  #toast { background: #1a0509; border-color: #6b1424; border-radius: 10px; font-family: var(--mono); }
+  .bar.thin { height: 4px; margin-top: 8px; }
+  .btn.empty { background: transparent; border: 1px dashed #1c2a36; color: var(--faint); }
+  .btn.empty .ic { font-size: 22px; font-weight: 300; color: #2a3b4a; }
+  .btn.empty:active { border-color: var(--faint); box-shadow: none; }
+
+  /* home-screen app: keep clear of the iPad status bar (time, date, battery) */
+  html.standalone body { padding-top: calc(max(env(safe-area-inset-top), 24px) + 14px); }
+
+  /* portrait / small screens: stack, and let each page scroll vertically */
+  @media (orientation: portrait), (max-width: 900px) {
+    .page { overflow-y: auto; align-content: start; }
+    #p1 { grid-template-columns: 1fr; grid-template-rows: none; }
+    #p1 .stats, #p1 .usageCard, #p1 .sessCard, #p1 .feedCard { grid-column: 1; grid-row: auto; }
+    #p1 .stats { grid-template-columns: 1fr 1fr; }
+    #p1 .sessCard, #p1 .feedCard { max-height: 46vh; }
+    #p2 { grid-template-columns: 1fr; grid-template-rows: none; }
+    #p2 .deckCard { height: 52vh; }
+    #clock { font-size: 24px; }
+  }
+  /* short landscape (Safari with toolbars) */
+  @media (orientation: landscape) and (max-height: 700px) {
+    .big { font-size: 26px; } svg.spark { height: 18px; } .usage .u .v { font-size: 22px; }
+    .card { padding: 10px 14px; } .btn .ic { font-size: 36px; }
+  }
+</style>
+</head>
+<body>
+<div id="alert"><span class="dot"></span><div id="alertText"></div><span class="x">tap to view</span></div>
+
+<header>
+  <h1><b id="host">Mac</b> · DeskDeck<span id="conn">connecting…</span></h1>
+  <nav class="tabs">
+    <button data-go="0" class="on">Dashboard<span class="badge" id="badge"></span></button>
+    <button data-go="1">Shortcuts</button>
+  </nav>
+  <div id="clock" class="num">--:--</div>
+</header>
+
+<main class="pages" id="pages">
+  <!-- ================= Page 1: dashboard (Mac + Claude) ================= -->
+  <section class="page" id="p1">
+    <div class="stats">
+      <div class="card"><h2>CPU <small id="chip"></small></h2>
+        <div class="big num" id="cpu">–<small>%</small></div>
+        <svg class="spark" id="cpuSpark" viewBox="0 0 60 34" preserveAspectRatio="none"></svg>
+        <div class="sub num" id="load"></div></div>
+      <div class="card"><h2>Memory</h2>
+        <div class="big num" id="ram">–<small>%</small></div>
+        <div class="sub num" id="ramSub"></div><div class="bar"><i id="ramBar"></i></div></div>
+      <div class="card"><h2>Disk</h2>
+        <div class="big num" id="disk">–<small>%</small></div>
+        <div class="sub num" id="diskSub"></div><div class="bar"><i id="diskBar"></i></div></div>
+      <div class="card"><h2>Network</h2>
+        <div class="big num" id="down">–</div>
+        <div class="sub num" id="up"></div>
+        <svg class="spark" id="netSpark" viewBox="0 0 60 34" preserveAspectRatio="none"></svg></div>
+    </div>
+    <div class="card usageCard"><h2>Claude usage <small id="limAge"></small></h2>
+      <div class="usage">
+        <div class="u"><div class="k">5-hour window</div><div class="v num" id="r5">–</div><div class="s num" id="r5s"></div><div class="bar thin"><i id="r5Bar"></i></div></div>
+        <div class="u"><div class="k">This week</div><div class="v num" id="rw">–</div><div class="s num" id="rws"></div><div class="bar thin"><i id="rwBar"></i></div></div>
+        <div class="u"><div class="k">Today</div><div class="v num" id="ud">–</div><div class="s num" id="uds"></div></div>
+      </div>
+      <div class="models" id="models"></div>
+    </div>
+    <div class="card sessCard"><h2>Claude Code sessions <small id="sessCount"></small></h2>
+      <div class="fill"><div class="sessions" id="sessions"></div></div></div>
+    <div class="card feedCard"><h2>Live activity <small id="hookHint"></small></h2>
+      <div class="fill"><div class="feed" id="feed"></div></div></div>
+  </section>
+
+  <!-- ================== Page 2: shortcuts + media =================== -->
+  <section class="page" id="p2">
+    <div class="card deckCard"><h2>Shortcuts <small id="scErr"></small></h2>
+      <div class="deck" id="deck"></div></div>
+    <div class="card mediaCard"><h2>Now playing</h2>
+      <div class="np"><div class="t" id="mt">Nothing playing</div><div class="sub" id="ma">Spotify or Music</div></div>
+      <div class="ctl">
+        <button class="mbtn" data-m="prev">⏮</button>
+        <button class="mbtn main" data-m="playpause" id="pp">▶</button>
+        <button class="mbtn" data-m="next">⏭</button>
+      </div>
+      <div class="vol"><div class="sub" id="vol">Volume</div>
+        <div class="ctl" style="margin-top:8px">
+          <button class="mbtn" data-m="voldown">−</button>
+          <button class="mbtn" data-m="mute">🔇</button>
+          <button class="mbtn" data-m="volup">+</button>
+        </div></div>
+    </div>
+  </section>
+</main>
+<div class="dots"><i class="on"></i><i></i></div>
+<div id="toast"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+if (navigator.standalone || matchMedia('(display-mode: standalone)').matches) document.documentElement.classList.add('standalone');
+const fmtTok = n => n >= 1e9 ? (n/1e9).toFixed(2)+'B' : n >= 1e6 ? (n/1e6).toFixed(1)+'M' : n >= 1e3 ? (n/1e3).toFixed(1)+'k' : String(n);
+const fmtB = b => { const u=['B','KB','MB','GB','TB']; let i=0; while (b>=1024 && i<4) { b/=1024; i++; } return (i>2?b.toFixed(1):Math.round(b))+' '+u[i]; };
+const fmtRate = b => fmtB(b) + '/s';
+const ago = t => { const s = Math.max(0, Date.now()/1000 - t); return s<60?'now':s<3600?Math.floor(s/60)+'m':s<86400?Math.floor(s/3600)+'h':Math.floor(s/86400)+'d'; };
+const clock = t => new Date(t*1000).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+const toolName = t => String(t ?? '').split('__').pop();   // mcp__server__tool -> tool
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+// ---- pages: swipe (native scroll-snap), tabs, dots, remember last page
+const pages = $('pages'), tabs = document.querySelectorAll('[data-go]'), dots = document.querySelectorAll('.dots i');
+let current = 0;
+function goTo(i, smooth = true) { pages.scrollTo({left: i * pages.clientWidth, behavior: smooth ? 'smooth' : 'auto'}); }
+function markPage() {
+  const i = Math.round(pages.scrollLeft / Math.max(pages.clientWidth, 1));
+  if (i === current) return;
+  current = i;
+  tabs.forEach((t, k) => t.classList.toggle('on', k === i));
+  dots.forEach((d, k) => d.classList.toggle('on', k === i));
+  try { localStorage.setItem('dd-page', i); } catch {}
+}
+pages.addEventListener('scroll', () => requestAnimationFrame(markPage), {passive: true});
+tabs.forEach(t => t.onclick = () => goTo(+t.dataset.go));
+window.addEventListener('resize', () => goTo(current, false));   // keep the page when rotating
+try { const saved = +localStorage.getItem('dd-page'); if (saved) { requestAnimationFrame(() => { goTo(saved, false); markPage(); }); } } catch {}
+$('alert').onclick = () => goTo(0);
+
+function spark(el, data, max, color) {
+  if (!data || !data.length) return;
+  const m = max || Math.max(...data, 1), n = data.length;
+  const pts = data.map((v,i) => `${(i/(Math.max(n-1,1)))*60},${34 - (v/m)*30 - 2}`).join(' ');
+  el.innerHTML = `<polyline points="0,34 ${pts} 60,34" fill="${color}22" stroke="none"/>` +
+                 `<polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.5" vector-effect="non-scaling-stroke"/>`;
+}
+
+// ---- sound + keep screen awake (need one tap first on iOS)
+let audio, lastWaiting = 0;
+document.addEventListener('touchend', unlock, {once:true});
+document.addEventListener('click', unlock, {once:true});
+function unlock() {
+  try { audio = new (window.AudioContext || window.webkitAudioContext)(); } catch {}
+  keepAwake();
+}
+async function keepAwake() { try { await navigator.wakeLock?.request('screen'); } catch {} }
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') keepAwake(); });
+function chime() {
+  if (!audio) return;
+  [660, 880].forEach((f, i) => {
+    const o = audio.createOscillator(), g = audio.createGain(), t = audio.currentTime + i*.18;
+    o.frequency.value = f; g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.25, t+.02);
+    g.gain.exponentialRampToValueAtTime(.0001, t+.3); o.connect(g).connect(audio.destination); o.start(t); o.stop(t+.32);
+  });
+}
+
+// ---- actions
+async function post(path, body) {
+  const r = await fetch(path, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body), credentials:'same-origin'});
+  if (!r.ok) throw new Error((await r.json().catch(()=>({}))).error || r.status);
+}
+document.querySelectorAll('[data-m]').forEach(b => b.onclick = () => post('/api/media', {action: b.dataset.m}).then(tick).catch(()=>{}));
+
+let toastTimer;
+function toast(msg, info) {
+  const t = $('toast'); t.textContent = msg; t.classList.add('on'); t.classList.toggle('info', !!info);
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('on'), 6000);
+}
+
+let deckSig = '';
+function renderDeck(list, err) {
+  $('scErr').textContent = err ? 'shortcuts.json error: ' + err : 'edit shortcuts.json on the Mac';
+  const sig = JSON.stringify(list); if (sig === deckSig) return; deckSig = sig;
+  const n = list.length;
+  $('deck').style.setProperty('--cols', n <= 8 ? 4 : n <= 12 ? 4 : n <= 16 ? 4 : n <= 20 ? 5 : 6);
+  $('deck').innerHTML = '';
+  list.forEach(s => {
+    const b = document.createElement('button');
+    b.className = 'btn'; if (s.color) b.style.borderColor = s.color;
+    if (s.type === 'empty') {   // placeholder slot, filled in later from shortcuts.json
+      b.className = 'btn empty'; b.innerHTML = '<span class="ic">+</span><span>Empty</span>';
+      b.onclick = () => toast(`Empty slot (${s.id}). Add a button for it in shortcuts.json on the Mac.`, true);
+      $('deck').appendChild(b); return;
+    }
+    b.innerHTML = `<span class="ic">${esc(s.icon || '⬚')}</span><span>${esc(s.label || s.id)}</span>`;
+    b.onclick = async () => {
+      try { await post('/api/run', {id: s.id}); b.classList.add('ok'); }
+      catch (e) { b.classList.add('err'); toast(`${s.label}: ${e.message}`); }
+      setTimeout(() => b.classList.remove('ok','err'), 500);
+    };
+    $('deck').appendChild(b);
+  });
+}
+
+// ---- render
+function render(d) {
+  $('host').textContent = d.host;
+  const s = d.stats;
+  $('chip').textContent = s.chip || '';
+  $('cpu').innerHTML = `${Math.round(s.cpu)}<small>%</small>`;
+  $('load').textContent = s.load ? 'load ' + s.load.join(' · ') : '';
+  spark($('cpuSpark'), s.cpu_hist, 100, '#00e5ff');
+  if (s.ram && s.ram.total) {
+    $('ram').innerHTML = `${Math.round(s.ram.pct)}<small>%</small>`;
+    $('ramSub').textContent = `${fmtB(s.ram.used)} of ${fmtB(s.ram.total)}`;
+    $('ramBar').style.width = s.ram.pct + '%';
+    $('ramBar').style.background = s.ram.pct > 85 ? 'var(--red)' : s.ram.pct > 70 ? 'var(--amber)' : '';
+  }
+  if (s.disk && s.disk.total) {
+    $('disk').innerHTML = `${Math.round(s.disk.pct)}<small>%</small>`;
+    $('diskSub').textContent = `${fmtB(s.disk.total - s.disk.used)} free`;
+    $('diskBar').style.width = s.disk.pct + '%';
+  }
+  $('down').textContent = '↓ ' + fmtRate(s.net?.down || 0);
+  $('up').textContent = '↑ ' + fmtRate(s.net?.up || 0);
+  spark($('netSpark'), s.net_hist, 0, '#1fff9c');
+
+  // Claude usage
+  const c = d.claude, u = c.usage;
+  const tok = x => x.input + x.output + x.cache_write;
+  const L = c.limits || {}, now = d.time;
+  const when = t => {   // e.g. "Wed, Nov 25 · 1:57 AM"
+    const dt = new Date(t * 1000);
+    return dt.toLocaleDateString([], {weekday:'short', month:'short', day:'numeric'}) + ' · ' +
+           dt.toLocaleTimeString([], {hour:'numeric', minute:'2-digit'});
+  };
+  const setBar = (id, pct) => { const b = $(id); b.parentElement.style.visibility = pct == null ? 'hidden' : 'visible';
+    if (pct != null) { b.style.width = Math.min(pct, 100) + '%'; b.style.background = pct >= 90 ? 'var(--red)' : pct >= 70 ? 'var(--amber)' : ''; } };
+  const f5 = L.five_hour || {}, wk = L.weekly || {};
+  $('r5').textContent = fmtTok(f5.tokens ? tok(f5.tokens) : 0);
+  $('r5s').textContent = f5.resets_at
+    ? `resets ${when(f5.resets_at)}${f5.exact ? '' : ' (est.)'}${f5.pct != null ? ` · ${f5.pct}% used` : ''}`
+    : 'no window running · starts with your next message';
+  setBar('r5Bar', f5.resets_at ? f5.pct : null);
+  $('rw').textContent = fmtTok(wk.tokens ? tok(wk.tokens) : tok(u.week));
+  $('rws').textContent = wk.resets_at
+    ? `resets ${when(wk.resets_at)}${wk.pct != null ? ` · ${wk.pct}% used` : ''}`
+    : 'reset time unknown · run /usage in Claude Code';
+  setBar('rwBar', wk.pct);
+  $('limAge').textContent = L.fetched_at ? `% as of ${ago(L.fetched_at) === 'now' ? 'just now' : ago(L.fetched_at) + ' ago'} · run /usage to refresh` : '';
+  $('ud').textContent = fmtTok(tok(u.today)); $('uds').textContent = `${fmtTok(u.today.output)} out · ${u.today.messages} replies`;
+  $('models').innerHTML = Object.entries(c.by_model).map(([m,v]) => `<span class="chip">${esc(m)} · ${fmtTok(tok(v))} today</span>`).join('');
+
+  // sessions
+  const label = {working:'working', waiting:'needs you', done:'finished', idle:'idle', running:'open', closed:'closed', ended:'ended'};
+  $('sessCount').textContent = `${c.sessions.filter(x=>x.running).length} open`;
+  $('sessions').innerHTML = c.sessions.length ? c.sessions.map(x => `
+    <div class="sess ${x.state}"><span class="st"></span>
+      <div style="min-width:0"><div class="t">${esc(x.title)}</div>
+        <div class="m">${esc(x.project)} · ${esc(x.model)}${x.state==='working'&&x.tool ? ' · ' + esc(toolName(x.tool)) + (x.detail ? ' ' + esc(x.detail) : '') : ''}${x.state==='waiting'&&x.message ? ' · ' + esc(x.message) : ''}${x.state!=='working'&&x.state!=='waiting'&&x.prompt&&x.prompt!==x.title ? ' · “' + esc(x.prompt) + '”' : ''}</div></div>
+      <div class="r">${label[x.state]||x.state}<br>${ago(x.last)}</div></div>`).join('')
+    : '<div class="empty">No Claude Code sessions in the last 3 hours.</div>';
+
+  // feed
+  $('hookHint').textContent = c.hooks_seen ? '' : 'install hooks for live events';
+  $('feed').innerHTML = c.events.length ? c.events.map(e => {
+    const what = e.event === 'PreToolUse' ? `<b>${esc(toolName(e.tool))}</b> ${esc(e.detail)}` :
+                 e.event === 'Notification' ? `<b style="color:var(--amber)">needs you</b> ${esc(e.detail)}` :
+                 e.event === 'Stop' ? '<b style="color:var(--green)">finished</b>' :
+                 e.event === 'UserPromptSubmit' ? '<b>new prompt</b>' : `<b>${esc(e.event)}</b>`;
+    return `<div class="row"><span class="num">${clock(e.ts)}</span><span>${esc(e.project)} · ${what}</span></div>`;
+  }).join('') : '<div class="empty">Waiting for Claude Code hook events. Run install_hooks.py once on the Mac.</div>';
+
+  // alert (floats over both pages)
+  const w = c.waiting;
+  $('alert').classList.toggle('on', w.length > 0);
+  $('badge').classList.toggle('on', w.length > 0);
+  $('alertText').innerHTML = w.map(x => `<b>${esc(x.project)}</b> — ${esc(x.message || 'Claude is waiting for you')}`).join('<br>');
+  if (w.length > lastWaiting) chime();
+  lastWaiting = w.length;
+
+  // media
+  if (d.media) { $('mt').textContent = d.media.title; $('ma').textContent = `${d.media.artist} · ${d.media.app}`; $('pp').textContent = d.media.state === 'playing' ? '⏸' : '▶'; }
+  else { $('mt').textContent = 'Nothing playing'; $('ma').textContent = 'Spotify or Music'; $('pp').textContent = '▶'; }
+  $('vol').textContent = d.volume ? (d.volume.muted ? 'Volume · muted' : `Volume · ${d.volume.level}%`) : 'Volume';
+
+  renderDeck(d.shortcuts, d.shortcuts_error);
+}
+
+async function tick() {
+  try {
+    const r = await fetch('/api/state', {credentials:'same-origin', cache:'no-store'});
+    if (!r.ok) throw new Error(r.status);
+    render(await r.json());
+    $('conn').textContent = ''; $('conn').className = '';
+  } catch (e) { $('conn').textContent = ' · offline'; $('conn').className = 'bad'; }
+}
+setInterval(() => { $('clock').textContent = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}); }, 1000);
+tick(); setInterval(tick, 2000);
+</script>
+</body>
+</html>

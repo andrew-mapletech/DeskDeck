@@ -1,0 +1,6 @@
+# per-Mac access key for the iPad link (copy it by hand when moving Macs)
+.token
+
+__pycache__/
+*.pyc
+.DS_Store

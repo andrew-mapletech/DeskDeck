@@ -1,0 +1,198 @@
+{
+  "_help": "Edit these buttons; the iPad updates within 2 seconds. types: keys (e.g. cmd+shift+4), app, url, shortcut (an Apple Shortcuts name), text (types it), shell (runs a command on the Mac). 'keys' and 'text' need Accessibility permission for Python (the background service) (System Settings > Privacy & Security > Accessibility). app, url, shortcut and shell buttons work without it. Empty slots: replace {\"id\": \"slot-N\", \"type\": \"empty\"} with a real button. '_examples' holds the buttons you removed, ready to copy back.",
+  "buttons": [
+    {
+      "id": "lock",
+      "label": "Lock Mac",
+      "icon": "🔒",
+      "type": "lock",
+      "color": "#e5484d"
+    },
+    {
+      "id": "sleep",
+      "label": "Sleep Mac",
+      "icon": "🌙",
+      "type": "shell",
+      "command": "pmset sleepnow",
+      "color": "#7c6cff"
+    },
+    {
+      "id": "chrome-2",
+      "label": "Chrome",
+      "icon": "🌐",
+      "type": "app",
+      "app": "Google Chrome",
+      "color": "#fbbc05"
+    },
+    {
+      "id": "github",
+      "label": "GitHub",
+      "icon": "🐙",
+      "type": "url",
+      "url": "https://github.com",
+      "color": "#a371f7"
+    },
+    {
+      "id": "discord",
+      "label": "Discord",
+      "icon": "🎮",
+      "type": "app",
+      "app": "Discord",
+      "color": "#5865f2"
+    },
+    {
+      "id": "freellmapi",
+      "label": "FreeLLMAPI",
+      "icon": "🤖",
+      "type": "app",
+      "app": "FreeLLMAPI",
+      "color": "#a78bfa"
+    },
+    {
+      "id": "deskdeck-folder",
+      "label": "DeskDeck",
+      "icon": "🗂️",
+      "type": "shell",
+      "command": "open ~/Downloads/DeskDeck",
+      "color": "#00e5ff"
+    },
+    {
+      "id": "downloads",
+      "label": "Downloads",
+      "icon": "📥",
+      "type": "shell",
+      "command": "open ~/Downloads",
+      "color": "#4cc9f0"
+    },
+    {
+      "id": "claude",
+      "label": "Claude",
+      "icon": "✳️",
+      "type": "app",
+      "app": "Claude",
+      "color": "#d97757"
+    },
+    {
+      "id": "brave",
+      "label": "Brave",
+      "icon": "🦁",
+      "type": "url",
+      "url": "https://www.youtube.com",
+      "app": "Brave Browser",
+      "color": "#fb542b"
+    },
+    {
+      "id": "chatgpt",
+      "label": "ChatGPT",
+      "icon": "💬",
+      "type": "app",
+      "app": "ChatGPT",
+      "color": "#10a37f"
+    },
+    {
+      "id": "excel",
+      "label": "Excel",
+      "icon": "📊",
+      "type": "app",
+      "app": "Microsoft Excel",
+      "color": "#21a366"
+    },
+    {
+      "id": "terminal",
+      "label": "Terminal",
+      "icon": "⌨️",
+      "type": "app",
+      "app": "Terminal",
+      "color": "#a3e635"
+    },
+    {
+      "id": "vscode",
+      "label": "VS Code",
+      "icon": "🧩",
+      "type": "app",
+      "app": "Visual Studio Code",
+      "color": "#007acc"
+    },
+    {
+      "id": "spotify",
+      "label": "Spotify",
+      "icon": "🎧",
+      "type": "app",
+      "app": "Spotify",
+      "color": "#1db954"
+    },
+    {
+      "id": "chrome",
+      "label": "Chrome",
+      "icon": "🌐",
+      "type": "app",
+      "app": "Google Chrome",
+      "color": "#fbbc05"
+    }
+  ],
+  "_examples": [
+    {
+      "id": "screenshot",
+      "label": "Screenshot",
+      "icon": "📸",
+      "type": "keys",
+      "keys": "cmd+shift+4"
+    },
+    {
+      "id": "spotlight",
+      "label": "Spotlight",
+      "icon": "🔍",
+      "type": "keys",
+      "keys": "cmd+space"
+    },
+    {
+      "id": "mission",
+      "label": "Mission Ctrl",
+      "icon": "🪟",
+      "type": "app",
+      "app": "Mission Control"
+    },
+    {
+      "id": "desk-left",
+      "label": "Desktop ←",
+      "icon": "⬅️",
+      "type": "keys",
+      "keys": "ctrl+left"
+    },
+    {
+      "id": "desk-right",
+      "label": "Desktop →",
+      "icon": "➡️",
+      "type": "keys",
+      "keys": "ctrl+right"
+    },
+    {
+      "id": "claude-usage",
+      "label": "Claude usage",
+      "icon": "📊",
+      "type": "url",
+      "url": "https://claude.ai/settings/usage"
+    },
+    {
+      "id": "ok",
+      "label": "Type “yes”",
+      "icon": "✅",
+      "type": "text",
+      "text": "yes"
+    },
+    {
+      "id": "enter",
+      "label": "Enter",
+      "icon": "↩️",
+      "type": "keys",
+      "keys": "return"
+    },
+    {
+      "id": "esc",
+      "label": "Esc",
+      "icon": "⎋",
+      "type": "keys",
+      "keys": "esc"
+    }
+  ]
+}
